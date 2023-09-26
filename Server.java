@@ -1,103 +1,87 @@
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
-import java.text.SimpleDateFormat;
-import java.util.Scanner;
-
-import java.util.Date;
+import java.io.*;
+import java.net.*;
+import java.util.*;
 
 public class Server {
-   public Server() {
-   }
+    private static List<PrintWriter> clientes = new ArrayList<>();
 
-   public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int[] portas = { 12345, 56789, 13579 };
+         String[] grupos = {"Cinema", "Series", "Anuncios"};
 
-      // Iniciar variavel para armazenar mensagens
-      String mensagem = " ";
-      
-      // Reservar bytes para guardar as mensagens
-      byte[] envio = new byte[1024];
+        System.out.println("Servidor escutando nas portas: " + Arrays.toString(portas));
 
-      // Scanner para ler a mensagem a partir do teclado
-      Scanner sc = new Scanner(System.in);
+        for (int porta : portas) {
+            Thread thread = new Thread(new ServerRunnable(porta));
+            thread.start();
+        }
+    }
 
-      // Iniciar o socket Multicast
-      MulticastSocket socket = new MulticastSocket();
-      
-      // Definir grupos distintos
-      InetAddress grupo1 = InetAddress.getByName("230.0.0.0");
-      InetAddress grupo2 = InetAddress.getByName("231.0.0.0");
-      InetAddress grupo3 = InetAddress.getByName("232.0.0.0");
+    public static void broadcast(String mensagem) {
+        for (PrintWriter cliente : clientes) {
+            cliente.println(mensagem);
+        }
+        // Exibir a mensagem no servidor
+        System.out.println(mensagem);
+    }
 
-      // Definir formatação do horário
-      SimpleDateFormat formatoDataHora = new SimpleDateFormat("HH:mm:ss");
+    private static class ServerRunnable implements Runnable {
+        private int porta;
 
-      // Rodar o servidor enquanto não receber "Servidor Encerrado!"
-      while(!mensagem.equals("Servidor Encerrado!")) {
+        public ServerRunnable(int porta) {
+            this.porta = porta;
+        }
 
-         // Iniciar sistema de horário 
-         Date horaAtual = new Date();
-         String horaFormatada = formatoDataHora.format(horaAtual);
+        @Override
+        public void run() {
+            try (ServerSocket servidorSocket = new ServerSocket(porta)) {
 
-         // Mensagem padrão do servidor e aguardar input
-         System.out.print("[Servidor | " + horaFormatada + "] Digite a mensagem: ");
-         mensagem = sc.nextLine();
+                while (true) {
+                    Socket clienteSocket = servidorSocket.accept();
+                    // Criar thread para o cliente
+                    Thread thread = new Thread(new ClienteHandler(clienteSocket));
+                    thread.start();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
-         // Verificar se houve o input para encerrar o servidor
-         if (mensagem.equals("encerrar")) {
-            mensagem = "Servidor Encerrado!";
-         }
+    private static class ClienteHandler implements Runnable {
+        private Socket clienteSocket;
+        private PrintWriter out;
 
-         // Separar o input para poder pegar a primeira palavra(que define o grupo)
-         String[] palavras = mensagem.split(" ");
+        public ClienteHandler(Socket socket) {
+            this.clienteSocket = socket;
+        }
+      @Override
+      public void run() {
+         try {
+            BufferedReader in = new BufferedReader(new InputStreamReader(clienteSocket.getInputStream()));
+            out = new PrintWriter(clienteSocket.getOutputStream(), true);
 
-         // Definir qual será o canal da mensagem e realizar o envio do pacote
-         // Enviar para grupo 1
-         if(palavras[0].equals("grupo1")){
+            String nomeCliente = in.readLine();
+            clientes.add(out);
 
-            // Tratamento da mensagem para retirar o nome do grupo
-            mensagem = mensagem.replaceFirst("\\b\\w+\\b", "");
-            mensagem = mensagem.trim();
-            // Converter a mensagemm de input em um pacote
-            envio = mensagem.getBytes();
-            DatagramPacket pacote = new DatagramPacket(envio, envio.length, grupo1, 4321);
-            // Enviar o pacote para o servidor
-            socket.send(pacote);
-         }
+            broadcast(nomeCliente + " entrou no chat ");
 
-         // Enviar para grupo 2
-         if(palavras[0].equals("grupo2")){
+            String mensagem;
+            while ((mensagem = in.readLine()) != null) {
+               if (mensagem.equalsIgnoreCase("SAIR")) {
+                  break;
+               }
+               broadcast(nomeCliente + ": " + mensagem);
+            }
 
-            // Tratamento da mensagem para retirar o nome do grupo
-            mensagem = mensagem.replaceFirst("\\b\\w+\\b", "");
-            mensagem = mensagem.trim();
-            // Converter a mensagemm de input em um pacote
-            envio = mensagem.getBytes();
-            DatagramPacket pacote = new DatagramPacket(envio, envio.length, grupo2, 4321);
-            // Enviar o pacote para o servidor
-            socket.send(pacote);
-         }
-
-         // Enviar para grupo 3
-         if(palavras[0].equals("grupo3")){
-
-            // Tratamento da mensagem para retirar o nome do grupo
-            mensagem = mensagem.replaceFirst("\\b\\w+\\b", "");
-            mensagem = mensagem.trim();
-            // Converter a mensagemm de input em um pacote
-            envio = mensagem.getBytes();
-            DatagramPacket pacote = new DatagramPacket(envio, envio.length, grupo3, 4321);
-            // Enviar o pacote para o servidor
-            socket.send(pacote);
+            // Remover cliente da lista
+            clientes.remove(out);
+            broadcast(nomeCliente + " saiu do chat.");
+            clienteSocket.close();
+         } catch (IOException e) {
+            e.printStackTrace();
          }
       }
-     
-      // Fechar servidor
-      Date horaAtual = new Date();
-      String horaFormatada = formatoDataHora.format(horaAtual);
-      System.out.print("[Servidor | " + horaFormatada + "] Multicast Encerrado");
-      socket.close();
-      sc.close();
    }
 }
