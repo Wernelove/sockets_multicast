@@ -1,5 +1,7 @@
 # sockets_multicast
 
+# Requisitos do projeto
+
 - Feito em Java;
 - Troca de mensagens feita por datagramas atraves de sockets multicast;
 - Publico alvo: grupo de amigos que querem um meio de discutir sobre midias de entretenimento;
