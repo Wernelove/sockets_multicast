@@ -1,105 +1,79 @@
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.MulticastSocket;
-import java.net.NetworkInterface;
+import java.io.*;
+import java.net.*;
 import java.util.Scanner;
 
 public class Client implements Runnable {
+   private Socket socket;
+   private String nome;
 
-   int topic;
-   String username;
-   int port;
-   InetAddress grupo;
-   MulticastSocket socket;
-   String Ip = "230.0.0.0";
-   
-   public Client(int topic, String username) throws IOException {
-      this.topic = topic;
-      this.username = username;
+   public Client(String nome, String servidorIP, int porta) {
+        try {
+            this.nome = nome;
+            this.socket = new Socket(servidorIP, porta);
+            System.out.println("Conectado ao servidor.");
+         } catch (IOException e) {
+            e.printStackTrace();
+         }
+   }
 
-      if (topic == 1) {
-          this.port = 4321;
-          grupo = InetAddress.getByName(Ip);
-      } else if(topic == 2){
-          this.port = 4322;
-          grupo = InetAddress.getByName(Ip);
-      } else{
-         this.port = 4323;
-          grupo = InetAddress.getByName(Ip);
-      }
-
-      InetAddress ia = InetAddress.getByName(Ip);
-      InetSocketAddress grupo = new InetSocketAddress(ia, port);
-      socket = new MulticastSocket(port);
-      NetworkInterface ni = NetworkInterface.getByInetAddress(ia);
-
-      socket.joinGroup(grupo, ni);
-  }
-
+   @Override
    public void run() {
-
-   }
-
-   void enviarMensagem(String mensagem, String username){
-      String msg = String.format("[Client | $s] $s: ", getTime(), username + mensagem);
-      byte[] envio = new byte[1024];
-      envio = msg.getBytes();
-
       try {
-         DatagramPacket pacote = new DatagramPacket(envio, envio.length, grupo, port);
-         socket.send(pacote);
-      } catch (IOException e) {
-         e.printStackTrace();
-     }
+         // Configurar fluxos de entrada e saída
+         BufferedReader entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+         PrintWriter saida = new PrintWriter(socket.getOutputStream(), true);
+
+         // Enviar o nome do cliente para o servidor
+         saida.println(nome);
+
+         Scanner scanner = new Scanner(System.in);
+
+         while (true) {
+            // Ler mensagem do usuário
+            String mensagem = scanner.nextLine();
+
+            // Enviar mensagem para o servidor
+            saida.println(mensagem);
+
+            // Se o cliente desejar sair
+            if (mensagem.equalsIgnoreCase("SAIR")) {
+               break;
+            }
+         }
+
+         // Fechar recursos
+         entrada.close();
+         saida.close();
+         socket.close();
+         } catch (IOException e) {
+            e.printStackTrace();
+         }
    }
 
-   
-
-   String getTime() {
-      return java.time.LocalTime.now().toString().substring(0, 5);
-  }
-
-   public static void main(String[] args) throws IOException {
+   public static void main(String[] args) {
 
       Scanner sc = new Scanner(System.in);
+      System.out.print("Digite seu nome: ");
+      String nome = sc.nextLine();
 
-      System.out.print("Informe seu nome de usuário:");
-      String username = sc.nextLine();
+      String servidorIP = "0.0.0.0";
 
-      System.out.print("Escolha a sala de bate papo:\n1 - Filmes\n2 - Series\n3 - Novidades");
-      int topico = Integer.parseInt(sc.nextLine());
+      System.out.print("Escolha um tópico de interesse:\n1 - Cinema\n2 - Series\n3 - Anuncios\n");
+      int grupo = sc.nextInt();
 
-      Client info = new Client(topico, username);
-      Thread receiverThread = new Thread(info);
-      receiverThread.start();
+      int porta;
 
-      String msg = " ";
-      String mensagem = " ";
-      MulticastSocket socket;
-      socket = new MulticastSocket(info.port);
-
-      while(!mensagem.contains("Sair")) {
-
-         System.out.print("Digite a sua mensagem:");
-         mensagem = sc.nextLine();
-        	info.enviarMensagem(mensagem, username);
-
-         System.out.println("[Cliente] Esperando por mensagem Multicast...");
-         byte[] buffer = new byte[1024];
-         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-         socket.receive(packet);
-         msg = new String(packet.getData());
-         System.out.println("[Cliente] Mensagem recebida do Servidor: "+ msg);
-         if(!msg.contains("Servidor Encerrado!")){
-            break;
-         }
+      if(grupo == 1){
+         porta = 12345;
+      } else if(grupo == 2){
+         porta = 56789; 
+      } else{
+         porta = 13579;
       }
 
-      socket.leaveGroup(info.grupo);
-      System.out.println("[Cliente] Conexao Encerrada!");
-      socket.close();
-      sc.close();
+      Client cliente = new Client(nome, servidorIP, porta);
+
+      Thread thread = new Thread(cliente);
+      thread.start();
    }
 }
