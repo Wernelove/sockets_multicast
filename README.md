@@ -17,3 +17,7 @@
 - Para entrar novamente basta iniciar o programa e repetir os passos anteriores;
 
 # Contexto
+
+- Este programa é feito para grupos de amigos que gostariam de poder conversar sobre seus interesses
+- em mídias visuais sem utilizar os aplicativos convencionais. Eles podem entrar em salas de bate papo
+- distintas para falar sobre filmes, series ou animes.
