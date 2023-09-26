@@ -15,3 +15,5 @@
 - A partir deste ponto o usuário está no chat, podendo enviar e receber mensagens;
 - Todo caracter é valido, porém ao digitar "sair" o programa vai notificar os outros e irá fechar;
 - Para entrar novamente basta iniciar o programa e repetir os passos anteriores;
+
+# Contexto
